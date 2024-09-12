@@ -1,0 +1,59 @@
+name: Cypress Tests with CRTF
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  cypress-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Cypress and dependencies
+        run: npm install
+
+      - name: Install junit-to-ctrf
+        run: npm install -g junit-to-ctrf
+
+      - name: Install CTRF Reporter
+        run: npm install -g github-actions-ctrf
+
+      - name: Run Cypress tests with JUnit reporter
+        run: |
+          npx cypress run --reporter junit --reporter-options "mochaFile=results/my-test-output.xml"
+        continue-on-error: true
+
+      - name: Convert JUnit to CTRF
+        run: |
+          junit-to-ctrf results/my-test-output.xml --output ctrf-report.json --tool Cypress
+
+      - name: Publish Test Summary Results
+        run: |
+          npx github-actions-ctrf summary ctrf-report.json > summary.txt
+          echo "====== CTRF General Test Summary ======"
+          cat summary.txt
+
+      - name: Publish Failed Test Summary Results
+        run: |
+          npx github-actions-ctrf failed ctrf-report.json > failed-summary.txt
+          echo "====== CTRF Failed Test Summary ======"
+          cat failed-summary.txt
+
+      - name: Publish Detailed Test Summary Results
+        run: |
+          npx github-actions-ctrf tests ctrf-report.json > detailed-summary.txt
+          echo "====== CTRF Detailed Test Summary ======"
+          cat detailed-summary.txt
